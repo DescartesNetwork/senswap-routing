@@ -32,12 +32,31 @@ impl Processor {
         let src_acc = next_account_info(accounts_iter)?;
         let treasury_bid_acc = next_account_info(accounts_iter)?;
         let dst_acc = next_account_info(accounts_iter)?;
+        let mint_bid_acc = next_account_info(accounts_iter)?;
         let treasury_ask_acc = next_account_info(accounts_iter)?;
         let treasury_sen_acc = next_account_info(accounts_iter)?;
         let treasurer = next_account_info(accounts_iter)?;
         let splt_program = next_account_info(accounts_iter)?;
+        let splata_program = next_account_info(accounts_iter)?;
         let swap_program = next_account_info(accounts_iter)?;
+        let sysvar_rent_acc = next_account_info(accounts_iter)?;
+        let system_program = next_account_info(accounts_iter)?;
 
+        // Initialize destination account just in case
+        let dst_acc_data = Account::unpack_unchecked(&dst_acc.data.borrow())?;
+        if dst_acc_data.state == AccountState::Uninitialized {
+          XSPLATA::initialize_account(
+            payer,
+            dst_acc,
+            payer,
+            mint_bid_acc,
+            system_program,
+            splt_program,
+            sysvar_rent_acc,
+            splata_program,
+            &[],
+          )?;
+        }
         // Swap
         XSwap::swap(
           amount,
@@ -97,7 +116,7 @@ impl Processor {
         if first_pool_data.mint_s != second_pool_data.mint_s {
           return Err(AppError::UnmatchedPrimaryMints.into());
         }
-        // Initialize middle accounr just in case (usually being SEN)
+        // Initialize middle account just in case (usually being SEN)
         let sen_acc_data = Account::unpack_unchecked(&sen_acc.data.borrow())?;
         if sen_acc_data.state == AccountState::Uninitialized {
           XSPLATA::initialize_account(
