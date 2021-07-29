@@ -36,13 +36,13 @@ impl ISwap {
     let mut accounts = Vec::with_capacity(10);
     accounts.push(AccountMeta::new(payer_acc, true));
     accounts.push(AccountMeta::new(pool_acc, false));
-    accounts.push(AccountMeta::new_readonly(vault_acc, false));
-    accounts.push(AccountMeta::new_readonly(src_acc, false));
-    accounts.push(AccountMeta::new_readonly(treasury_bid_acc, false));
-    accounts.push(AccountMeta::new_readonly(dst_acc, false));
-    accounts.push(AccountMeta::new_readonly(treasury_ask_acc, false));
-    accounts.push(AccountMeta::new_readonly(treasury_sen_acc, false));
-    accounts.push(AccountMeta::new_readonly(treasurer, true));
+    accounts.push(AccountMeta::new(vault_acc, false));
+    accounts.push(AccountMeta::new(src_acc, false));
+    accounts.push(AccountMeta::new(treasury_bid_acc, false));
+    accounts.push(AccountMeta::new(dst_acc, false));
+    accounts.push(AccountMeta::new(treasury_ask_acc, false));
+    accounts.push(AccountMeta::new(treasury_sen_acc, false));
+    accounts.push(AccountMeta::new_readonly(treasurer, false));
     accounts.push(AccountMeta::new_readonly(splt_program, false));
     // Return
     Ok(Instruction {

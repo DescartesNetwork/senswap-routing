@@ -9,7 +9,7 @@ use solana_program::{
   account_info::{next_account_info, AccountInfo},
   entrypoint::ProgramResult,
   msg,
-  program_pack::Pack,
+  program_pack::{IsInitialized, Pack},
   pubkey::Pubkey,
 };
 
@@ -43,8 +43,14 @@ impl Processor {
         let system_program = next_account_info(accounts_iter)?;
 
         // Initialize destination account just in case
-        let dst_acc_data = Account::unpack_unchecked(&dst_acc.data.borrow())?;
-        if dst_acc_data.state == AccountState::Uninitialized {
+        let is_initialized: bool;
+        if (&dst_acc.data.borrow()).len() == 0 {
+          is_initialized = false
+        } else {
+          let dst_acc_data = Account::unpack_unchecked(&dst_acc.data.borrow())?;
+          is_initialized = dst_acc_data.is_initialized();
+        }
+        if !is_initialized {
           XSPLATA::initialize_account(
             payer,
             dst_acc,
