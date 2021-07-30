@@ -1,14 +1,13 @@
 use crate::error::AppError;
+use crate::helper::oracle::Oracle;
 use crate::instruction::AppInstruction;
 use crate::interfaces::{xsplata::XSPLATA, xswap::XSwap};
-use crate::schema::{
-  account::{Account, AccountState},
-  pool::Pool,
-};
+use crate::schema::{account::Account, pool::Pool};
 use solana_program::{
   account_info::{next_account_info, AccountInfo},
   entrypoint::ProgramResult,
   msg,
+  program_error::ProgramError,
   program_pack::{IsInitialized, Pack},
   pubkey::Pubkey,
 };
@@ -43,14 +42,7 @@ impl Processor {
         let system_program = next_account_info(accounts_iter)?;
 
         // Initialize destination account just in case
-        let is_initialized: bool;
-        if (&dst_acc.data.borrow()).len() == 0 {
-          is_initialized = false
-        } else {
-          let dst_acc_data = Account::unpack_unchecked(&dst_acc.data.borrow())?;
-          is_initialized = dst_acc_data.is_initialized();
-        }
-        if !is_initialized {
+        if !Self::is_rented_and_initialized_acc(&dst_acc)? {
           XSPLATA::initialize_account(
             payer,
             dst_acc,
@@ -123,8 +115,7 @@ impl Processor {
           return Err(AppError::UnmatchedPrimaryMints.into());
         }
         // Initialize middle account just in case (usually being SEN)
-        let sen_acc_data = Account::unpack_unchecked(&sen_acc.data.borrow())?;
-        if sen_acc_data.state == AccountState::Uninitialized {
+        if !Self::is_rented_and_initialized_acc(&sen_acc)? {
           XSPLATA::initialize_account(
             payer,
             sen_acc,
@@ -138,8 +129,7 @@ impl Processor {
           )?;
         }
         // Initialize end account just in case
-        let dst_acc_data = Account::unpack_unchecked(&dst_acc.data.borrow())?;
-        if dst_acc_data.state == AccountState::Uninitialized {
+        if !Self::is_rented_and_initialized_acc(&dst_acc)? {
           XSPLATA::initialize_account(
             payer,
             dst_acc,
@@ -153,14 +143,21 @@ impl Processor {
           )?;
         }
         // Estimate middle amount
-        let middle_amount = Self::compute_return_in_swapping(
-          amount,
-          Self::parse_reserve(&first_pool_data, *mint_bid_acc.key)
-            .ok_or(AppError::CannotFindReserves)?,
+        let bid_reserve = Self::parse_reserve(&first_pool_data, *mint_bid_acc.key)
+          .ok_or(AppError::CannotFindReserves)?;
+        let middle_reserve = Self::parse_reserve(&first_pool_data, *mint_sen_acc.key)
+          .ok_or(AppError::CannotFindReserves)?;
+        let new_bid_reserve = bid_reserve.checked_add(amount).ok_or(AppError::Overflow)?;
+        let (new_middle_reserve, _, _) = Oracle::curve_in_fee(
+          new_bid_reserve,
+          bid_reserve,
           first_pool_data.reserve_s,
           true,
         )
         .ok_or(AppError::Overflow)?;
+        let middle_amount = middle_reserve
+          .checked_sub(new_middle_reserve)
+          .ok_or(AppError::Overflow)?;
         // Routing #1
         XSwap::swap(
           amount,
@@ -201,6 +198,17 @@ impl Processor {
     }
   }
 
+  pub fn is_rented_and_initialized_acc(acc: &AccountInfo) -> Result<bool, ProgramError> {
+    let is_initialized: bool;
+    if (&acc.data.borrow()).len() == 0 {
+      is_initialized = false
+    } else {
+      let acc_data = Account::unpack_unchecked(&acc.data.borrow())?;
+      is_initialized = acc_data.is_initialized();
+    }
+    Ok(is_initialized)
+  }
+
   pub fn parse_reserve(pool_data: &Pool, mint: Pubkey) -> Option<u64> {
     if pool_data.mint_a == mint {
       return Some(pool_data.reserve_a);
@@ -210,39 +218,6 @@ impl Processor {
       return Some(pool_data.reserve_s);
     } else {
       return None;
-    }
-  }
-
-  pub fn compute_return_in_swapping(
-    bid_delta: u64,
-    bid_reserve: u64,
-    ask_reserve: u64,
-    is_discounted: bool,
-  ) -> Option<u64> {
-    let decimals: u128 = 1000000000;
-    let fee: u128 = 2500000;
-    let earn: u128 = 500000;
-
-    let new_bid_reserve = bid_delta.checked_add(bid_reserve)?;
-    let new_ask_reserve = (bid_reserve as u128)
-      .checked_mul(ask_reserve as u128)?
-      .checked_div(new_bid_reserve as u128)?;
-    let ask_delta = (ask_reserve as u128).checked_sub(new_ask_reserve)?;
-    if is_discounted {
-      return Some(
-        decimals
-          .checked_sub(fee)?
-          .checked_mul(ask_delta)?
-          .checked_div(decimals)? as u64,
-      );
-    } else {
-      return Some(
-        decimals
-          .checked_sub(fee)?
-          .checked_sub(earn)?
-          .checked_mul(ask_delta)?
-          .checked_div(decimals)? as u64,
-      );
     }
   }
 }
