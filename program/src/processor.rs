@@ -110,7 +110,7 @@ impl Processor {
         let system_program = next_account_info(accounts_iter)?;
 
         let first_pool_data = Pool::unpack(&first_pool_acc.data.borrow())?;
-        let second_pool_data = Pool::unpack(&first_pool_acc.data.borrow())?;
+        let second_pool_data = Pool::unpack(&second_pool_acc.data.borrow())?;
         if first_pool_data.mint_s != second_pool_data.mint_s {
           return Err(AppError::UnmatchedPrimaryMints.into());
         }
