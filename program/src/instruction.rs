@@ -85,7 +85,7 @@ impl AppInstruction {
           delta_b,
         }
       }
-      4 => {
+      3 => {
         let lpt = rest
           .get(..8)
           .and_then(|slice| slice.try_into().ok())
