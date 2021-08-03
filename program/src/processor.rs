@@ -195,6 +195,153 @@ impl Processor {
 
         Ok(())
       }
+
+      AppInstruction::AddLiquidity {
+        delta_s,
+        delta_a,
+        delta_b,
+      } => {
+        msg!("Calling AddLiquidity function");
+        let accounts_iter = &mut accounts.iter();
+        let payer = next_account_info(accounts_iter)?;
+        let pool_acc = next_account_info(accounts_iter)?;
+        let lpt_acc = next_account_info(accounts_iter)?;
+        let mint_lpt_acc = next_account_info(accounts_iter)?;
+        let src_s_acc = next_account_info(accounts_iter)?;
+        let treasury_s_acc = next_account_info(accounts_iter)?;
+        let src_a_acc = next_account_info(accounts_iter)?;
+        let treasury_a_acc = next_account_info(accounts_iter)?;
+        let src_b_acc = next_account_info(accounts_iter)?;
+        let treasury_b_acc = next_account_info(accounts_iter)?;
+        let treasurer = next_account_info(accounts_iter)?;
+        let splt_program = next_account_info(accounts_iter)?;
+        let splata_program = next_account_info(accounts_iter)?;
+        let swap_program = next_account_info(accounts_iter)?;
+        let sysvar_rent_acc = next_account_info(accounts_iter)?;
+        let system_program = next_account_info(accounts_iter)?;
+
+        // Initialize destination account just in case
+        if !Self::is_rented_and_initialized_acc(&lpt_acc)? {
+          XSPLATA::initialize_account(
+            payer,
+            lpt_acc,
+            payer,
+            mint_lpt_acc,
+            system_program,
+            splt_program,
+            sysvar_rent_acc,
+            splata_program,
+            &[],
+          )?;
+        }
+        // Add Liquidity
+        XSwap::add_liquidity(
+          delta_s,
+          delta_a,
+          delta_b,
+          payer,
+          pool_acc,
+          lpt_acc,
+          mint_lpt_acc,
+          src_s_acc,
+          treasury_s_acc,
+          src_a_acc,
+          treasury_a_acc,
+          src_b_acc,
+          treasury_b_acc,
+          treasurer,
+          splt_program,
+          swap_program,
+          &[],
+        )?;
+
+        Ok(())
+      }
+
+      AppInstruction::RemoveLiquidity { lpt } => {
+        msg!("Calling RemoveLiquidity function");
+        let accounts_iter = &mut accounts.iter();
+        let payer = next_account_info(accounts_iter)?;
+        let pool_acc = next_account_info(accounts_iter)?;
+        let lpt_acc = next_account_info(accounts_iter)?;
+        let mint_lpt_acc = next_account_info(accounts_iter)?;
+        let dst_s_acc = next_account_info(accounts_iter)?;
+        let mint_s_acc = next_account_info(accounts_iter)?;
+        let treasury_s_acc = next_account_info(accounts_iter)?;
+        let dst_a_acc = next_account_info(accounts_iter)?;
+        let mint_a_acc = next_account_info(accounts_iter)?;
+        let treasury_a_acc = next_account_info(accounts_iter)?;
+        let dst_b_acc = next_account_info(accounts_iter)?;
+        let mint_b_acc = next_account_info(accounts_iter)?;
+        let treasury_b_acc = next_account_info(accounts_iter)?;
+        let treasurer = next_account_info(accounts_iter)?;
+        let splt_program = next_account_info(accounts_iter)?;
+        let splata_program = next_account_info(accounts_iter)?;
+        let swap_program = next_account_info(accounts_iter)?;
+        let sysvar_rent_acc = next_account_info(accounts_iter)?;
+        let system_program = next_account_info(accounts_iter)?;
+
+        // Initialize destination account just in case
+        if !Self::is_rented_and_initialized_acc(&dst_s_acc)? {
+          XSPLATA::initialize_account(
+            payer,
+            dst_s_acc,
+            payer,
+            mint_s_acc,
+            system_program,
+            splt_program,
+            sysvar_rent_acc,
+            splata_program,
+            &[],
+          )?;
+        }
+        if !Self::is_rented_and_initialized_acc(&dst_a_acc)? {
+          XSPLATA::initialize_account(
+            payer,
+            dst_a_acc,
+            payer,
+            mint_a_acc,
+            system_program,
+            splt_program,
+            sysvar_rent_acc,
+            splata_program,
+            &[],
+          )?;
+        }
+        if !Self::is_rented_and_initialized_acc(&dst_b_acc)? {
+          XSPLATA::initialize_account(
+            payer,
+            dst_b_acc,
+            payer,
+            mint_b_acc,
+            system_program,
+            splt_program,
+            sysvar_rent_acc,
+            splata_program,
+            &[],
+          )?;
+        }
+        // Remove Liquidity
+        XSwap::remove_liquidity(
+          lpt,
+          payer,
+          pool_acc,
+          lpt_acc,
+          mint_lpt_acc,
+          dst_s_acc,
+          treasury_s_acc,
+          dst_a_acc,
+          treasury_a_acc,
+          dst_b_acc,
+          treasury_b_acc,
+          treasurer,
+          splt_program,
+          swap_program,
+          &[],
+        )?;
+
+        Ok(())
+      }
     }
   }
 
